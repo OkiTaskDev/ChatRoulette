@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatRoulette - Video & Testo</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Poppins:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-chat: #181818;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #333333;
+            --accent: #00b4d8;
+            --accent-hover: #0288b7;
+            --message-sent: #00b4d8;
+            --message-received: #242424;
+            --shadow: rgba(0, 0, 0, 0.4);
+            --success: #2ecc71;
+            --danger: #e63946;
+            --warning: #f4a261;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-chat: #f0f0f0;
+            --text-primary: #1a1a1a;
+            --text-secondary: #606060;
+            --border-color: #e0e0e0;
+            --accent: #0077b6;
+            --accent-hover: #005b96;
+            --message-sent: #0077b6;
+            --message-received: #e0e0e0;
+            --shadow: rgba(0, 0, 0, 0.15);
+            --success: #2ecc71;
+            --danger: #e63946;
+            --warning: #f4a261;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.3s, color 0.3s;
+            overflow: hidden;
+            line-height: 1.6;
+        }
+
+        .mode-selector {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #121212 0%, #1e1e1e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .mode-selector.hidden {
+            display: none;
+        }
+
+        .mode-card {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 2.5rem;
+            text-align: center;
+            box-shadow: 0 10px 40px var(--shadow);
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-card h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        .mode-card p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            line-height: 1.7;
+        }
+
+        .mode-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .mode-option {
+            padding: 1.5rem;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--bg-primary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-option:hover {
+            border-color: var(--accent);
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px var(--shadow);
+            background: linear-gradient(145deg, var(--accent), var(--bg-primary));
+        }
+
+        .mode-option-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            transition: transform 0.3s ease;
+        }
+
+        .mode-option:hover .mode-option-icon {
+            transform: scale(1.15);
+        }
+
+        .mode-option-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .mode-option-desc {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .notice-section {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .notice-section h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.2rem;
+            margin-bottom: 0.8rem;
+            color: var(--accent);
+        }
+
+        .notice-section p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.8rem;
+        }
+
+        .notice-section a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+
+        .notice-section a:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+
+        @keyframes glow {
+            0% { text-shadow: 0 0 8px var(--accent); }
+            50% { text-shadow: 0 0 16px var(--accent), 0 0 24px var(--success); }
+            100% { text-shadow: 0 0 8px var(--accent); }
+        }
+
+        .video-container {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            background: #000;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .video-container.active {
+            display: grid;
+        }
+
+        .video-wrapper {
+            position: relative;
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .video-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: var(--text-primary);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .video-btn:hover {
+            background: var(--accent);
+            transform: scale(1.1);
+        }
+
+        .video-btn.active {
+            background: var(--danger);
+        }
+
+        .ban-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+
+        .ban-overlay.show {
+            display: flex;
+        }
+
+        .ban-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 8px 24px var(--shadow);
+            max-width: 380px;
+            color: var(--text-primary);
+            border: 2px solid var(--danger);
+        }
+
+        .ban-card h2 {
+            font-family: 'Poppins', sans-serif;
+            color: var(--danger);
+            margin-bottom: 1rem;
+            font-size: 1.4rem;
+        }
+
+        .ban-card p {
+            margin-bottom: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .ban-timer {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .report-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            animation: fadeIn 0.3s;
+        }
+
+        .report-modal.show {
+            display: flex;
+        }
+
+        .report-card {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            max-width: 360px;
+            width: 90%;
+            box-shadow: 0 8px 24px var(--shadow);
+            color: var(--text-primary);
+        }
+
+        .report-card h2 {
+            font-family: 'Poppins', sans-serif;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .report-card select,
+        .report-card textarea {
+            width: 100%;
+            padding: 0.7rem;
+            margin-bottom: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .report-card textarea {
+            min-height: 90px;
+            resize: vertical;
+            max-length: 500;
+        }
+
+        .report-card select:focus,
+        .report-card textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.2);
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 0.8rem;
+            justify-content: flex-end;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 8px var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+        }
+
+        .theme-toggle {
+            background: var(--bg-primary);
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(20deg);
+            border-color: var(--accent);
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .stats {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .stat-item {
+            background: var(--accent);
+            color: var(--bg-primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .stat-item.waiting {
+            background: var(--warning);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 1.5rem;
+            height: calc(100vh - 70px);
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 16px var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+
+        .interest-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid var(--border-color);
+        }
+
+        .tag:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow);
+            border-color: var(--accent);
+        }
+
+        .tag.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border-color: var(--accent-hover);
+        }
+
+        .main-chat {
+            background: var(--bg-chat);
+            border-radius: 16px;
+            box-shadow: 0 4px 16px var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: var(--success);
+        }
+
+        .status-indicator.searching {
+            background: var(--warning);
+        }
+
+        .status-indicator.banned {
+            background: var(--danger);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .chat-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: var(--bg-primary);
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #d00000;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .messages {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 0.7rem 1rem;
+            border-radius: 12px;
+            word-wrap: break-word;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.sent {
+            background: var(--message-sent);
+            color: var(--bg-primary);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.received {
+            background: var(--message-received);
+            color: var(--text-primary);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.system {
+            background: transparent;
+            color: var(--text-secondary);
+            align-self: center;
+            font-style: italic;
+            font-size: 0.85rem;
+            max-width: 100%;
+            text-align: center;
+        }
+
+        .message-sender {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.8rem;
+            margin-bottom: 0.3rem;
+            opacity: 0.8;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 0.3rem;
+        }
+
+        .input-area {
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 0.7rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+        }
+
+        #messageInput:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.2);
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.7rem 1rem;
+            background: var(--message-received);
+            border-radius: 12px;
+            align-self: flex-start;
+            max-width: 60px;
+            margin-left: 1.5rem;
+        }
+
+        .typing-indicator.active {
+            display: flex;
+        }
+
+        .typing-indicator span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            animation: typing 1.2s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-8px);
+            }
+        }
+
+        .connection-status {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            box-shadow: 0 4px 16px var(--shadow);
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            animation: slideUp 0.3s;
+        }
+
+        .connection-status.show {
+            display: flex;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .report-btn {
+            background: var(--danger);
+            color: var(--bg-primary);
+            border: none;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .report-btn:hover {
+            background: #d00000;
+        }
+
+        .disabled-interface {
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 968px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .mode-options {
+                grid-template-columns: 1fr;
+            }
+
+            .video-container.active {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mode Selector -->
+    <div class="mode-selector" id="modeSelector">
+        <div class="mode-card">
+            <h1>🎭 ChatRoulette</h1>
+            <p>Unisciti a conversazioni anonime in tutto il mondo. Scegli la tua modalità e inizia a connetterti!</p>
+            
+            <div class="mode-options">
+                <div class="mode-option" onclick="selectMode('text')">
+                    <div class="mode-option-icon">💬</div>
+                    <div class="mode-option-title">Solo Testo</div>
+                    <div class="mode-option-desc">Chiacchiera in modo anonimo tramite messaggi di testo. Veloce e sicuro.</div>
+                </div>
+                
+                <div class="mode-option" onclick="selectMode('video')">
+                    <div class="mode-option-icon">📹</div>
+                    <div class="mode-option-title">Video + Testo</div>
+                    <div class="mode-option-desc">Videochiamata con chat testuale per un'esperienza coinvolgente.</div>
+                </div>
+            </div>
+
+            <div class="notice-section">
+                <h3>Informazioni Importanti</h3>
+                <p>Rispetta gli altri utenti e segui le nostre <a href="/terms" target="_blank">Condizioni d'Uso</a>. Le conversazioni sono monitorate per garantire sicurezza.</p>
+                <p>La tua privacy è al primo posto: non condividiamo i tuoi dati. Leggi la nostra <a href="/privacy" target="_blank">Informativa sulla Privacy</a>.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ban Overlay -->
+    <div class="ban-overlay" id="banOverlay">
+        <div class="ban-card">
+            <h2>🚫 Sei stato bannato</h2>
+            <p>Attendi il termine del ban.</p>
+            <div class="ban-timer" id="banTimer">30:00</div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div class="report-modal" id="reportModal">
+        <div class="report-card">
+            <h2>Segnala Utente</h2>
+            <select id="reportReason">
+                <option value="" disabled selected>Seleziona un motivo</option>
+                <option value="inappropriate_language">Linguaggio inappropriato</option>
+                <option value="spam">Spam</option>
+                <option value="offensive_behavior">Comportamento offensivo</option>
+                <option value="threatening">Comportamento minaccioso</option>
+                <option value="inappropriate_video">Contenuto video inappropriato</option>
+                <option value="other">Altro</option>
+            </select>
+            <textarea id="reportComment" placeholder="Aggiungi un commento (opzionale)" maxlength="500"></textarea>
+            <div class="report-actions">
+                <button class="btn btn-primary" onclick="submitReport()">Invia</button>
+                <button class="btn btn-danger" onclick="closeReportModal()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="header" id="header">
+        <div class="logo">🎭 ChatRoulette</div>
+        <div class="header-controls">
+            <div class="stats">
+                <div class="stat-item">
+                    👥 <span id="onlineCount">0</span> online
+                </div>
+                <div class="stat-item waiting">
+                    ⏳ <span id="waitingCount">0</span> in attesa
+                </div>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span id="themeIcon">🌙</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="container" id="container" style="display: none;">
+        <div class="sidebar">
+            <div>
+                <h2>ℹ️ Informazioni</h2>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.8rem;">
+                    Le conversazioni sono anonime: sei "Tu" e il tuo partner è "Stranger".
+                </p>
+                <p style="color: var(--text-secondary); font-size: 0.85rem;">
+                    <strong>Modalità:</strong> <span id="currentMode">-</span>
+                </p>
+            </div>
+
+            <div>
+                <h2>🎯 Interessi</h2>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.8rem;">
+                    Seleziona i tuoi interessi per trovare persone simili
+                </p>
+                <div class="interest-tags">
+                    <div class="tag" onclick="toggleTag(this)">🎮 Gaming</div>
+                    <div class="tag" onclick="toggleTag(this)">🎵 Musica</div>
+                    <div class="tag" onclick="toggleTag(this)">🎬 Film</div>
+                    <div class="tag" onclick="toggleTag(this)">📚 Libri</div>
+                    <div class="tag" onclick="toggleTag(this)">⚽ Sport</div>
+                    <div class="tag" onclick="toggleTag(this)">🎨 Arte</div>
+                    <div class="tag" onclick="toggleTag(this)">💻 Tech</div>
+                    <div class="tag" onclick="toggleTag(this)">🌍 Viaggi</div>
+                    <div class="tag" onclick="toggleTag(this)">🍕 Cucina</div>
+                </div>
+            </div>
+
+            <div>
+                <h2>⚙️ Impostazioni</h2>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.8rem;">
+                    <input type="checkbox" id="soundToggle" checked style="width: 16px; height: 16px; cursor: pointer;">
+                    <span>Suoni notifica</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 0.8rem;">
+                    <input type="checkbox" id="timestampToggle" checked style="width: 16px; height: 16px; cursor: pointer;">
+                    <span>Mostra timestamp</span>
+                </label>
+            </div>
+
+            <div style="margin-top: auto; padding-top: 1rem; border-top: 2px solid var(--border-color);">
+                <button class="btn btn-danger" style="width: 100%;" onclick="changeMode()">
+                    🔄 Cambia Modalità
+                </button>
+            </div>
+        </div>
+
+        <div class="main-chat">
+            <div class="chat-header">
+                <div class="status">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">Disconnesso</span>
+                </div>
+                <div class="chat-actions">
+                    <button class="btn btn-primary" id="startBtn" onclick="startChat()">
+                        🚀 Inizia Chat
+                    </button>
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopChat()" style="display: none;">
+                        ⏹️ Ferma
+                    </button>
+                    <button class="btn btn-danger" id="nextBtn" onclick="nextChat()" disabled>
+                        ⏭️ Prossimo
+                    </button>
+                    <button class="report-btn" id="reportBtn" onclick="openReportModal()" style="display: none;" title="Segnala utente">
+                        🚨 Report
+                    </button>
+                </div>
+            </div>
+
+            <div class="video-container" id="videoContainer">
+                <div class="video-wrapper">
+                    <video id="localVideo" autoplay muted playsinline></video>
+                    <div class="video-label">Tu</div>
+                    <div class="video-controls">
+                        <button class="video-btn" id="toggleVideoBtn" onclick="toggleVideo()" title="Attiva/Disattiva video">
+                            📹
+                        </button>
+                        <button class="video-btn" id="toggleAudioBtn" onclick="toggleAudio()" title="Attiva/Disattiva audio">
+                            🎤
+                        </button>
+                    </div>
+                </div>
+                <div class="video-wrapper">
+                    <video id="remoteVideo" autoplay playsinline></video>
+                    <div class="video-label">Stranger</div>
+                </div>
+            </div>
+
+            <div class="messages" id="messages"></div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+
+            <div class="input-area">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Scrivi un messaggio..." 
+                    disabled
+                    onkeypress="handleKeyPress(event)"
+                    oninput="handleTyping()"
+                >
+                <button class="btn btn-primary" onclick="sendMessage()" id="sendBtn" disabled>
+                    📤 Invia
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="connection-status" id="connectionStatus">
+        <div class="status-indicator connected"></div>
+        <span>Connesso al server</span>
+    </div>
+
+    <script>
+        let socket;
+        let isConnected = false;
+        let isSearching = false;
+        let isTyping = false;
+        let typingTimeout;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        let currentPartnerId = null;
+        let isBanned = false;
+        let banInterval;
+        let chatMode = null;
+        
+        let localStream = null;
+        let peerConnection = null;
+        let isVideoEnabled = true;
+        let isAudioEnabled = true;
+        
+        const ICE_SERVERS = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        function selectMode(mode) {
+            chatMode = mode;
+            document.getElementById('modeSelector').classList.add('hidden');
+            document.getElementById('container').style.display = 'grid';
+            document.getElementById('currentMode').textContent = mode === 'video' ? '📹 Video + Testo' : '💬 Solo Testo';
+            
+            if (mode === 'video') {
+                initializeMedia();
+            }
+            
+            checkBanStatus();
+        }
+
+        function changeMode() {
+            if (isConnected || isSearching) {
+                if (!confirm('Sei sicuro di voler cambiare modalità? La chat corrente verrà terminata.')) {
+                    return;
+                }
+                if (isConnected) {
+                    nextChat();
+                } else if (isSearching) {
+                    stopChat();
+                }
+            }
+            
+            if (socket && socket.connected && !isBanned) {
+                socket.emit('change_mode');
+                socket.disconnect();
+            }
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            chatMode = null;
+            document.getElementById('container').style.display = 'none';
+            document.getElementById('modeSelector').classList.remove('hidden');
+            document.getElementById('videoContainer').classList.remove('active');
+            document.getElementById('messages').innerHTML = '';
+        }
+
+        async function initializeMedia() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+                
+                document.getElementById('localVideo').srcObject = localStream;
+                document.getElementById('videoContainer').classList.add('active');
+                addSystemMessage('✅ Camera e microfono attivati');
+            } catch (error) {
+                console.error('Errore accesso media:', error);
+                addSystemMessage('❌ Impossibile accedere a camera/microfono. Assicurati di aver dato i permessi.');
+                chatMode = 'text';
+                document.getElementById('currentMode').textContent = '💬 Solo Testo (fallback)';
+            }
+        }
+
+        function toggleVideo() {
+            if (!localStream) return;
+            
+            isVideoEnabled = !isVideoEnabled;
+            localStream.getVideoTracks().forEach(track => {
+                track.enabled = isVideoEnabled;
+            });
+            
+            const btn = document.getElementById('toggleVideoBtn');
+            btn.classList.toggle('active', !isVideoEnabled);
+            btn.textContent = isVideoEnabled ? '📹' : '📹';
+            btn.style.background = isVideoEnabled ? 'rgba(0, 0, 0, 0.7)' : 'var(--danger)';
+        }
+
+        function toggleAudio() {
+            if (!localStream) return;
+            
+            isAudioEnabled = !isAudioEnabled;
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = isAudioEnabled;
+            });
+            
+            const btn = document.getElementById('toggleAudioBtn');
+            btn.classList.toggle('active', !isAudioEnabled);
+            btn.textContent = isAudioEnabled ? '🎤' : '🔇';
+            btn.style.background = isAudioEnabled ? 'rgba(0, 0, 0, 0.7)' : 'var(--danger)';
+        }
+
+        async function createPeerConnection() {
+            peerConnection = new RTCPeerConnection(ICE_SERVERS);
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            }
+            
+            peerConnection.ontrack = (event) => {
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+            };
+            
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('ice_candidate', {
+                        candidate: event.candidate
+                    });
+                }
+            };
+            
+            peerConnection.onconnectionstatechange = () => {
+                console.log('Connection state:', peerConnection.connectionState);
+                if (peerConnection.connectionState === 'disconnected' || 
+                    peerConnection.connectionState === 'failed') {
+                    addSystemMessage('⚠️ Connessione video persa');
+                }
+            };
+        }
+
+        async function createOffer() {
+            await createPeerConnection();
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('video_offer', { offer: offer });
+        }
+
+        async function handleOffer(offer) {
+            await createPeerConnection();
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('video_answer', { answer: answer });
+        }
+
+        async function handleAnswer(answer) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+
+        async function handleIceCandidate(candidate) {
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        }
+
+        async function checkBanStatus() {
+            try {
+                const response = await fetch('/check_ban');
+                const data = await response.json();
+                if (data.banned) {
+                    isBanned = true;
+                    showBanOverlay(data.reason, data.ban_end);
+                    disableInterface();
+                } else {
+                    hideBanOverlay();
+                    enableInterface();
+                    initSocket();
+                }
+            } catch (error) {
+                console.error('Errore verifica ban:', error);
+                initSocket();
+            }
+        }
+
+        function initSocket() {
+            socket = io({
+                reconnection: false,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: MAX_RECONNECT_ATTEMPTS
+            });
+
+            setupSocketListeners();
+        }
+
+        function setupSocketListeners() {
+            socket.on('connect', () => {
+                console.log('✅ Connesso al server');
+                reconnectAttempts = 0;
+                isBanned = false;
+                showConnectionStatus('Connesso al server', true);
+                updateStatus('Connesso al server', false);
+                hideBanOverlay();
+                enableInterface();
+                setTimeout(() => socket.emit('get_stats'), 100);
+            });
+
+            socket.on('disconnect', () => {
+                console.log('❌ Disconnesso dal server');
+                isConnected = false;
+                isSearching = false;
+                showConnectionStatus('Disconnesso dal server', false);
+                updateStatus('Disconnesso', false);
+                disableChat();
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('Errore connessione:', error);
+                reconnectAttempts++;
+                if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                    showConnectionStatus('Impossibile connettersi al server', false);
+                }
+            });
+
+            socket.on('banned', (data) => {
+                console.log('🚫 Utente bannato:', data);
+                isBanned = true;
+                showBanOverlay(data.reason, data.ban_end);
+                disableInterface();
+                socket.disconnect();
+            });
+
+            socket.on('force_disconnect', (data) => {
+                console.log('🚫 Disconnessione forzata (ban)');
+                isBanned = true;
+                showBanOverlay(data.reason, data.ban_end);
+                disableInterface();
+                socket.disconnect();
+            });
+
+            socket.on('stats_update', (data) => {
+                console.log('📊 Stats:', data);
+                document.getElementById('onlineCount').textContent = data.online || 0;
+                document.getElementById('waitingCount').textContent = data.waiting || 0;
+            });
+
+            socket.on('waiting', () => {
+                if (isBanned) return;
+                console.log('⏳ In attesa di un partner...');
+                isSearching = true;
+                updateStatus('Cercando un partner compatibile...', false, true);
+                addSystemMessage('🔍 Ricerca di un partner in corso... (modalità: ' + (chatMode === 'video' ? 'video' : 'testo') + ')');
+                document.getElementById('stopBtn').style.display = 'inline-block';
+                document.getElementById('startBtn').style.display = 'none';
+            });
+
+            socket.on('matched', async (data) => {
+                if (isBanned) return;
+                console.log('✅ Match trovato!', data);
+                isConnected = true;
+                isSearching = false;
+                currentPartnerId = data.partner_id;
+                updateStatus('Connesso con Stranger', true);
+                addSystemMessage('✅ Connesso con Stranger! Inizia a chattare!');
+                enableChat();
+                document.getElementById('reportBtn').style.display = 'inline-block';
+                playSound('connect');
+                
+                document.getElementById('stopBtn').style.display = 'none';
+                document.getElementById('startBtn').style.display = 'none';
+                
+                if (chatMode === 'video' && data.initiator) {
+                    await createOffer();
+                }
+            });
+
+            socket.on('video_offer', async (data) => {
+                if (chatMode === 'video') {
+                    await handleOffer(data.offer);
+                }
+            });
+
+            socket.on('video_answer', async (data) => {
+                if (chatMode === 'video') {
+                    await handleAnswer(data.answer);
+                }
+            });
+
+            socket.on('ice_candidate', async (data) => {
+                if (chatMode === 'video') {
+                    await handleIceCandidate(data.candidate);
+                }
+            });
+
+            socket.on('message', (data) => {
+                if (isBanned) return;
+                console.log('📨 Messaggio ricevuto:', data);
+                addMessage(data.message, 'received');
+                playSound('message');
+            });
+
+            socket.on('partner_disconnected', () => {
+                if (isBanned) return;
+                console.log('👋 Partner disconnesso');
+                isConnected = false;
+                isSearching = false;
+                currentPartnerId = null;
+                updateStatus('Partner disconnesso', false);
+                addSystemMessage('❌ Il tuo partner si è disconnesso');
+                disableChat();
+                document.getElementById('reportBtn').style.display = 'none';
+                playSound('disconnect');
+                
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                document.getElementById('remoteVideo').srcObject = null;
+                
+                document.getElementById('stopBtn').style.display = 'none';
+                document.getElementById('startBtn').style.display = 'inline-block';
+            });
+
+            socket.on('typing', () => {
+                if (isBanned) return;
+                document.getElementById('typingIndicator').classList.add('active');
+                scrollToBottom();
+            });
+
+            socket.on('stop_typing', () => {
+                document.getElementById('typingIndicator').classList.remove('active');
+            });
+
+            socket.on('error', (data) => {
+                console.error('❌ Errore:', data.message);
+                addSystemMessage('❌ Errore: ' + data.message);
+            });
+        }
+
+        function showBanOverlay(reason, banEndIso) {
+            const overlay = document.getElementById('banOverlay');
+            const timerEl = document.getElementById('banTimer');
+            
+            const banEnd = new Date(banEndIso);
+            updateBanTimer(banEnd);
+            
+            banInterval = setInterval(() => {
+                updateBanTimer(banEnd);
+            }, 1000);
+            
+            overlay.classList.add('show');
+            disableInterface();
+        }
+
+        function hideBanOverlay() {
+            const overlay = document.getElementById('banOverlay');
+            overlay.classList.remove('show');
+            if (banInterval) {
+                clearInterval(banInterval);
+                banInterval = null;
+            }
+            enableInterface();
+        }
+
+        function updateBanTimer(banEnd) {
+            const now = new Date();
+            const diff = banEnd - now;
+            if (diff <= 0) {
+                document.getElementById('banTimer').textContent = '00:00';
+                clearInterval(banInterval);
+                isBanned = false;
+                hideBanOverlay();
+                addSystemMessage('✅ Ban terminato. Puoi tornare a chattare.');
+                checkBanStatus();
+                return;
+            }
+            
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            document.getElementById('banTimer').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function openReportModal() {
+            if (isBanned || !currentPartnerId) return;
+            document.getElementById('reportModal').classList.add('show');
+            document.getElementById('reportReason').value = '';
+            document.getElementById('reportComment').value = '';
+        }
+
+        function closeReportModal() {
+            document.getElementById('reportModal').classList.remove('show');
+        }
+
+        function submitReport() {
+            if (isBanned || !currentPartnerId) return;
+            const reason = document.getElementById('reportReason').value;
+            const comment = document.getElementById('reportComment').value.trim();
+            
+            if (!reason) {
+                alert('Seleziona un motivo per la segnalazione');
+                return;
+            }
+            
+            socket.emit('report_user', {
+                reported_id: currentPartnerId,
+                reason: reason,
+                comment: comment
+            });
+            closeReportModal();
+            addSystemMessage('✅ Segnalazione inviata');
+        }
+
+        function disableInterface() {
+            document.getElementById('container').classList.add('disabled-interface');
+            document.getElementById('header').classList.add('disabled-interface');
+            disableChat();
+        }
+
+        function enableInterface() {
+            document.getElementById('container').classList.remove('disabled-interface');
+            document.getElementById('header').classList.remove('disabled-interface');
+        }
+
+        function toggleTheme() {
+            if (isBanned) return;
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            const currentTheme = html.getAttribute('data-theme');
+
+            if (currentTheme === 'light') {
+                html.setAttribute('data-theme', 'dark');
+                icon.textContent = '☀️';
+            } else {
+                html.setAttribute('data-theme', 'light');
+                icon.textContent = '🌙';
+            }
+        }
+
+        function toggleTag(element) {
+            if (isBanned) return;
+            element.classList.toggle('active');
+        }
+
+        function getSelectedInterests() {
+            const tags = document.querySelectorAll('.tag.active');
+            return Array.from(tags).map(tag => tag.textContent.trim());
+        }
+
+        function startChat() {
+            if (!socket || !socket.connected || isBanned) {
+                if (isBanned) {
+                    return;
+                } else {
+                    addSystemMessage('❌ Connessione al server non disponibile. Riprova tra poco.');
+                }
+                return;
+            }
+
+            const interests = getSelectedInterests();
+            
+            const messages = document.getElementById('messages');
+            messages.innerHTML = '';
+            
+            socket.emit('find_partner', { 
+                interests: interests,
+                chat_mode: chatMode
+            });
+            
+            document.getElementById('startBtn').disabled = true;
+        }
+
+        function stopChat() {
+            if (isSearching && !isBanned) {
+                socket.emit('stop_searching');
+                isSearching = false;
+                updateStatus('Connesso al server', false);
+                addSystemMessage('⏹️ Ricerca interrotta');
+                
+                document.getElementById('stopBtn').style.display = 'none';
+                document.getElementById('startBtn').style.display = 'inline-block';
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        function nextChat() {
+            if (isBanned) return;
+            socket.emit('next_partner');
+            isConnected = false;
+            isSearching = false;
+            currentPartnerId = null;
+            
+            const messages = document.getElementById('messages');
+            messages.innerHTML = '';
+            
+            disableChat();
+            document.getElementById('reportBtn').style.display = 'none';
+            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            document.getElementById('remoteVideo').srcObject = null;
+            
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('startBtn').disabled = false;
+            
+            updateStatus('Connesso al server', false);
+        }
+
+        function enableChat() {
+            if (isBanned) return;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('nextBtn').disabled = false;
+            document.getElementById('messageInput').focus();
+        }
+
+        function disableChat() {
+            document.getElementById('messageInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('nextBtn').disabled = true;
+            document.getElementById('startBtn').disabled = isBanned;
+            document.getElementById('reportBtn').style.display = 'none';
+        }
+
+        function sendMessage() {
+            if (isBanned || !isConnected) return;
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (message) {
+                socket.emit('send_message', { message: message });
+                addMessage(message, 'sent');
+                input.value = '';
+                playSound('send');
+                socket.emit('stop_typing');
+                isTyping = false;
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (isBanned) return;
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function handleTyping() {
+            if (!isConnected || isBanned) return;
+            
+            const input = document.getElementById('messageInput');
+            if (input.value.trim() === '') {
+                if (isTyping) {
+                    isTyping = false;
+                    socket.emit('stop_typing');
+                }
+                return;
+            }
+
+            if (!isTyping) {
+                isTyping = true;
+                socket.emit('typing');
+            }
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                isTyping = false;
+                socket.emit('stop_typing');
+            }, 1000);
+        }
+
+        function addMessage(text, type) {
+            if (isBanned) return;
+            const messages = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const showTimestamp = document.getElementById('timestampToggle').checked;
+            const time = new Date().toLocaleTimeString('it-IT', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            let content = '';
+            if (type === 'received') {
+                content += `<div class="message-sender">Stranger</div>`;
+            } else if (type === 'sent') {
+                content += `<div class="message-sender">Tu</div>`;
+            }
+            content += text;
+            if (showTimestamp && type !== 'system') {
+                content += `<div class="message-time">${time}</div>`;
+            }
+            
+            messageDiv.innerHTML = content;
+            messages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function addSystemMessage(text) {
+            const messages = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system';
+            messageDiv.textContent = text;
+            messages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function updateStatus(text, connected, searching = false, banned = false) {
+            document.getElementById('statusText').textContent = text;
+            const indicator = document.getElementById('statusIndicator');
+            indicator.classList.remove('connected', 'searching', 'banned');
+            
+            if (banned) {
+                indicator.classList.add('banned');
+            } else if (connected) {
+                indicator.classList.add('connected');
+            } else if (searching) {
+                indicator.classList.add('searching');
+            }
+        }
+
+        function showConnectionStatus(text, isConnected) {
+            if (isBanned) return;
+            const status = document.getElementById('connectionStatus');
+            const indicator = status.querySelector('.status-indicator');
+            const span = status.querySelector('span');
+            
+            span.textContent = text;
+            
+            if (isConnected) {
+                indicator.classList.add('connected');
+            } else {
+                indicator.classList.remove('connected');
+            }
+            
+            status.classList.add('show');
+            
+            setTimeout(() => {
+                status.classList.remove('show');
+            }, 3000);
+        }
+
+        function scrollToBottom() {
+            const messages = document.getElementById('messages');
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function playSound(type) {
+            if (!document.getElementById('soundToggle').checked || isBanned) return;
+            
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                switch(type) {
+                    case 'message':
+                        oscillator.frequency.value = 800;
+                        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + 0.1);
+                        break;
+                    case 'send':
+                        oscillator.frequency.value = 600;
+                        gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + 0.08);
+                        break;
+                    case 'connect':
+                        oscillator.frequency.value = 800;
+                        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + 0.1);
+                        
+                        setTimeout(() => {
+                            const osc2 = audioContext.createOscillator();
+                            const gain2 = audioContext.createGain();
+                            osc2.connect(gain2);
+                            gain2.connect(audioContext.destination);
+                            osc2.frequency.value = 1000;
+                            gain2.gain.setValueAtTime(0.1, audioContext.currentTime);
+                            gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                            osc2.start(audioContext.currentTime);
+                            osc2.stop(audioContext.currentTime + 0.1);
+                        }, 100);
+                        break;
+                    case 'disconnect':
+                        oscillator.frequency.value = 400;
+                        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + 0.2);
+                        break;
+                }
+            } catch (e) {
+                console.warn('Audio non disponibile:', e);
+            }
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (socket && socket.connected && !isBanned) {
+                socket.disconnect();
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+        });
+    </script>
+</body>
+</html>
